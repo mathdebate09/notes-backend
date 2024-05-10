@@ -1,4 +1,6 @@
 const express = require('express')
+const morgan = require('morgan')
+
 const app = express()
 
 let persons = [
@@ -25,6 +27,27 @@ let persons = [
 ]
 
 app.use(express.json())
+
+morgan.token('post_data', function (req) { 
+    if (req.method === 'POST') {
+        return JSON.stringify(req.body);
+    } else {
+        return '';
+    }
+});
+
+const requestLogger = morgan(function (tokens, req, res) {
+    return [
+        tokens.method(req, res),
+        tokens.url(req, res),
+        tokens.status(req, res),
+        tokens.res(req, res, 'content-length'), '-',
+        tokens['response-time'](req, res), 'ms',
+        tokens.post_data(req, res)
+    ].join(' ')
+});
+
+app.use(requestLogger);
 
 app.get('/info', (request, response) => {
     const date = new Date();
@@ -80,8 +103,8 @@ app.post('/api/persons', (request, response) => {
     }
 
     if (persons.some(p => p.name === body.name)) {
-        return response.status(400).json({ 
-            error: 'name must be unique' 
+        return response.status(400).json({
+            error: 'name must be unique'
         })
     }
 
