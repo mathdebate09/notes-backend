@@ -6,11 +6,13 @@
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js",
+    "build": "rm -rf dist && cd ./frontend && npm run build && cp -r dist ../ && cd ../",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Jay Singh",
   "license": "MIT",
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^4.19.2",
     "morgan": "^1.10.0"
   },
