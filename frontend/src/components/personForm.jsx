@@ -17,14 +17,12 @@ const PersonForm = ({ persons, setPersons, newPerson, setNewPerson, setMessage }
             setNewPerson({ name: '', number: '' })
           })
           .catch(error => {
-
             setMessage(
               `Information of ${newPerson.name} has already been removed from the server`
             )
             setTimeout(() => {
               setMessage(null)
             }, 5000)
-            setNotes(notes.filter(n => n.id !== id))
           })
       }
     } else {
@@ -39,6 +37,12 @@ const PersonForm = ({ persons, setPersons, newPerson, setNewPerson, setMessage }
           setPersons(persons.concat(returnedPerson))
           setNewPerson({ name: '', number: '' })
           setMessage(`Added ${returnedPerson.name}`)
+          setTimeout(() => {
+            setMessage(null)
+          }, 5000)
+        })
+        .catch(error => {
+          setMessage(error.response.data.error)
           setTimeout(() => {
             setMessage(null)
           }, 5000)

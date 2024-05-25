@@ -15,11 +15,11 @@ const App = () => {
 
   useEffect(() => {
     phoneService
-      .getAll()
-      .then(initialPersons => {
+    .getAll()
+    .then(initialPersons => {
         setPersons(initialPersons)
-      })
-  }, [])
+    })
+}, [])
 
   return (
     <div>
