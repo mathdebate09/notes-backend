@@ -5,12 +5,13 @@ require('dotenv').config()
 
 const app = express()
 
+app.use(express.static('dist'))
+
 const Phonebook = require('./models/phonebook')
 const mongoose = require('mongoose')
 
 app.use(express.json())
 app.use(cors())
-app.use(express.static('dist'))
 
 morgan.token('post_data', function (req) {
     if (req.method === 'POST') {
@@ -31,7 +32,21 @@ const requestLogger = morgan(function (tokens, req, res) {
     ].join(' ')
 });
 
-app.use(requestLogger);
+app.use(requestLogger)
+
+const unknownEndpoint = (request, response) => {
+    response.status(404).send({ error: 'unknown endpoint' })
+  }
+
+const errorHandler = (error, request, response, next) => {
+    console.error(error.message)
+  
+    if (error.name === 'CastError') {
+      return response.status(400).send({ error: 'malformatted id' })
+    } 
+  
+    next(error)
+  }
 
 const url = process.env.MONGODB_URI
 
@@ -62,18 +77,18 @@ app.get('/info', (request, response) => {
         timeZoneName: 'long'
     };
 
-    const formatterShort = new Intl.DateTimeFormat('en-US', optionsShort);
-    const formatterLong = new Intl.DateTimeFormat('en-US', optionsLong);
+    const formatterShort = new Intl.DateTimeFormat('en-US', optionsShort)
+    const formatterLong = new Intl.DateTimeFormat('en-US', optionsLong)
     let formattedDateShort = formatterShort.format(date);
     let formattedDateLong = formatterLong.format(date);
     // Remove commas
-    formattedDateShort = formattedDateShort.replace(/,/g, '');
-    formattedDateLong = formattedDateLong.replace(/,/g, '');
+    formattedDateShort = formattedDateShort.replace(/,/g, '')
+    formattedDateLong = formattedDateLong.replace(/,/g, '')
 
-    formattedDateLong = formattedDateLong.split(' ').slice(1).join(' ');
+    formattedDateLong = formattedDateLong.split(' ').slice(1).join(' ')
 
-    const formattedDate = `${formattedDateShort} (${formattedDateLong})`;
-    response.send(`<p>Phonebook has info for ${persons.length} people</p><p>${formattedDate}</p>`);
+    const formattedDate = `${formattedDateShort} (${formattedDateLong})`
+    response.send(`<p>Phonebook has info for ${persons.length} people</p><p>${formattedDate}</p>`)
 })
 
 app.get('/', (request, response) => {
@@ -105,10 +120,36 @@ app.post('/api/persons', (request, response) => {
       })
 })
 
-app.get('/api/persons/:id', (request, response) => {
-    Phonebook.findById(request.params.id).then(person => {
-        response.json(person)
+app.put('/api/persons/:id', (request, response, next) => {
+    const body = request.body
+
+    const person = {
+        name: body.name,
+        number: body.number,
+    }
+
+    Phonebook.findByIdAndUpdate(request.params.id, person, { new: true })
+    .then(updatedPerson => {
+        if (updatedPerson) {
+            response.json(updatedPerson)
+        } else {
+            response.status(404).end()
+        }
     })
+    .catch(error => next(error))
+})
+
+app.get('/api/persons/:id', (request, response, next) => {
+    Phonebook.findById(request.params.id)
+    .then(person => {
+      if (person) {
+        response.json(person)
+      } else {
+        response.status(404).end()
+      }
+    })
+
+    .catch(error => next(error))
 })
 
 app.delete('/api/persons/:id', (request, response, next) => {
@@ -118,6 +159,9 @@ app.delete('/api/persons/:id', (request, response, next) => {
     })
     .catch(error => next(error))
 })
+
+app.use(unknownEndpoint)
+app.use(errorHandler)
 
 const PORT = process.env.PORT
 app.listen(PORT, () => {
