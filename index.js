@@ -1,37 +1,18 @@
 const express = require('express')
 const morgan = require('morgan')
 const cors = require('cors')
+require('dotenv').config()
 
 const app = express()
 
-let persons = [
-    {
-        "id": 1,
-        "name": "Arto Hellas",
-        "number": "040-123456"
-    },
-    {
-        "id": 2,
-        "name": "Ada Lovelace",
-        "number": "39-44-5323523"
-    },
-    {
-        "id": 3,
-        "name": "Dan Abramov",
-        "number": "12-43-234345"
-    },
-    {
-        "id": 4,
-        "name": "Mary Poppendieck",
-        "number": "39-23-6423122"
-    }
-]
+const Phonebook = require('./models/phonebook')
+const mongoose = require('mongoose')
 
 app.use(express.json())
 app.use(cors())
 app.use(express.static('dist'))
 
-morgan.token('post_data', function (req) { 
+morgan.token('post_data', function (req) {
     if (req.method === 'POST') {
         return JSON.stringify(req.body);
     } else {
@@ -51,6 +32,18 @@ const requestLogger = morgan(function (tokens, req, res) {
 });
 
 app.use(requestLogger);
+
+const url = process.env.MONGODB_URI
+
+console.log('connecting to', url)
+
+mongoose.connect(url)
+    .then(result => {
+        console.log('connected to MongoDB')
+    })
+    .catch(error => {
+        console.log('error connecting to MongoDB:', error.message)
+    })
 
 app.get('/info', (request, response) => {
     const date = new Date();
@@ -88,13 +81,10 @@ app.get('/', (request, response) => {
 })
 
 app.get('/api/persons', (request, response) => {
-    response.json(persons)
+    Phonebook.find({}).then(persons => {
+        response.json(persons)
+      })
 })
-
-const generateId = () => {
-    const maxId = 100000;
-    return Math.floor(Math.random() * maxId);
-}
 
 app.post('/api/persons', (request, response) => {
     const body = request.body
@@ -105,42 +95,31 @@ app.post('/api/persons', (request, response) => {
         })
     }
 
-    if (persons.some(p => p.name === body.name)) {
-        return response.status(400).json({
-            error: 'name must be unique'
-        })
-    }
-
-    const person = {
+    const person = new Phonebook ({
         name: body.name,
         number: body.number,
-        id: generateId(),
-    }
+    })
 
-    persons = persons.concat(person)
-
-    response.json(person)
+    person.save().then(savedPerson => {
+        response.json(savedPerson)
+      })
 })
 
 app.get('/api/persons/:id', (request, response) => {
-    const id = Number(request.params.id)
-    const person = persons.find(person => person.id === id)
-    if (person) {
+    Phonebook.findById(request.params.id).then(person => {
         response.json(person)
-    } else {
-        console.log('x')
-        response.status(404).end()
-    }
+    })
 })
 
-app.delete('/api/persons/:id', (request, response) => {
-    const id = Number(request.params.id)
-    persons = persons.filter(person => person.id !== id)
-
-    response.status(204).end()
+app.delete('/api/persons/:id', (request, response, next) => {
+    Phonebook.findByIdAndDelete(request.params.id)
+    .then(result => {
+      response.status(204).end()
+    })
+    .catch(error => next(error))
 })
 
-const PORT = process.env.PORT || 3001
+const PORT = process.env.PORT
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)
+    console.log(`Server running on port ${PORT}`)
 })
